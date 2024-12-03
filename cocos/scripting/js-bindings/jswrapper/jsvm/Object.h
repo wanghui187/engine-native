@@ -25,6 +25,7 @@
 
 #pragma once
 #include <cassert>
+#include <set>
 #include "../RefCounter.hpp"
 #include "../Value.hpp"
 #include "../config.hpp"
@@ -96,7 +97,11 @@ public:
         if (!_ref) {
             return;
         }
-        OH_JSVM_DeleteReference(_env, _ref);
+        uint32_t result = 0;
+        OH_JSVM_ReferenceRef(_env, _ref, &result);
+        if(result == 1) {
+            OH_JSVM_DeleteReference(_env, _ref);
+        }
         _ref = nullptr;
     }
 };   
@@ -119,6 +124,12 @@ public:
         BIGINT64,
         BIGUINT64
     };
+
+    static std::set<Object*> objBaseSet;
+    static bool restarting;
+    static void resetBaseSet() {
+          objBaseSet.erase(objBaseSet.begin(), objBaseSet.end());
+    }
 
     using BufferContentsFreeFunc = void (*)(void *contents, size_t byteLength, void *userData);
 

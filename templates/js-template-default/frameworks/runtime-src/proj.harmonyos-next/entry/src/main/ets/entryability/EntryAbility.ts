@@ -5,8 +5,13 @@ import window from '@ohos.window';
 
 const nativeContext = cocos.getContext(ContextType.ENGINE_UTILS);
 const nativeAppLifecycle = cocos.getContext(ContextType.APP_LIFECYCLE);
-
+enum windowStageType {
+  hide,
+  show
+}
 export default class EntryAbility extends UIAbility {
+  private windowStageType: windowStageType = windowStageType.hide;
+
   onCreate(want, launchParam) {
     globalThis.abilityWant = want;
     nativeAppLifecycle.onCreate();
@@ -61,16 +66,16 @@ export default class EntryAbility extends UIAbility {
     windowStage.on("windowStageEvent", (data) => {
       let stageEventType: window.WindowStageEventType = data;
       switch (stageEventType) {
-          case window.WindowStageEventType.RESUMED:
-              nativeAppLifecycle.onShow();
-              break;
-          case window.WindowStageEventType.PAUSED:
-              nativeAppLifecycle.onHide();
-              break;
-          default:
-              break;
+        case window.WindowStageEventType.RESUMED:
+          this.onChangeWinodowStageType(windowStageType.show);
+          break;
+        case window.WindowStageEventType.PAUSED:
+          this.onChangeWinodowStageType(windowStageType.hide);
+          break;
+        default:
+          break;
       }
-  });
+    });
   }
 
   onWindowStageDestroy() {
@@ -79,11 +84,18 @@ export default class EntryAbility extends UIAbility {
 
   onForeground() {
     // Ability has brought to foreground
-    nativeAppLifecycle.onShow();
+    this.onChangeWinodowStageType(windowStageType.show);
   }
 
   onBackground() {
     // Ability has back to background
-    nativeAppLifecycle.onHide();
+    this.onChangeWinodowStageType(windowStageType.hide);
+  }
+
+  onChangeWinodowStageType(type: windowStageType) {
+    if (this.windowStageType != type) {
+      this.windowStageType = type;
+      this.windowStageType === windowStageType.show ? nativeAppLifecycle.onShow() : nativeAppLifecycle.onHide();
+    }
   }
 }
