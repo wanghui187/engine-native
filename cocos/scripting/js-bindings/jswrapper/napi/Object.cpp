@@ -314,6 +314,7 @@ Object* Object::createTypedArrayWithBuffer(TypedArrayType type, const Object *ob
         case TypedArrayType::INT16:
             napiType  = napi_int8_array;
             sizeOfEle = 2;
+            break;
         case TypedArrayType::UINT16:
             napiType  = napi_uint8_array;
             sizeOfEle = 2;
@@ -321,9 +322,11 @@ Object* Object::createTypedArrayWithBuffer(TypedArrayType type, const Object *ob
         case TypedArrayType::INT32:
             napiType  = napi_int32_array;
             sizeOfEle = 4;
+            break;
         case TypedArrayType::UINT32:
             napiType  = napi_uint32_array;
             sizeOfEle = 4;
+            break;
         case TypedArrayType::FLOAT32:
             napiType  = napi_float32_array;
             sizeOfEle = 4;
@@ -650,16 +653,12 @@ void Object::weakCallback(napi_env env, void* nativeObject, void* finalizeHint /
             }
         }
 
-        // TODO: remove test code before releasing.
-        const char* clsName = seObj->_getClass()->getName();
-        SE_LOGE("weakCallback class name:%s, ptr:%p", clsName, rawPtr);
-
         if (seObj->_finalizeCb != nullptr) {
-            seObj->_finalizeCb(env, finalizeHint, finalizeHint);
+            seObj->_finalizeCb(env, rawPtr, rawPtr);
         } else {
             assert(seObj->_getClass() != nullptr);
             if (seObj->_getClass()->_getFinalizeFunction() != nullptr) {
-                seObj->_getClass()->_getFinalizeFunction()(env, finalizeHint, finalizeHint);
+                seObj->_getClass()->_getFinalizeFunction()(env, rawPtr, rawPtr);
             }
         }
         seObj->decRef();

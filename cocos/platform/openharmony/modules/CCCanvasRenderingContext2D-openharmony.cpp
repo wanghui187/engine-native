@@ -83,34 +83,12 @@ public:
     using Color4F = std::array<float, 4>;
 
     CanvasRenderingContext2DImpl() {
-        _typographyStyle = OH_Drawing_CreateTypographyStyle();
-        OH_Drawing_SetTypographyTextDirection(_typographyStyle, TEXT_DIRECTION_LTR);
-        OH_Drawing_SetTypographyTextAlign(_typographyStyle, TEXT_ALIGN_LEFT);
-
-        _fontCollection = OH_Drawing_CreateFontCollection();
-        // Register TTF
-        const auto& fontInfoMap = getFontFamilyNameMap();
-        for (auto fontInfo : fontInfoMap) {
-            std::string fontName = fontInfo.first;
-            std::string fontPath = fontInfo.second;
-            Data bufferData = FileUtils::getInstance()->getDataFromFile(fontPath);
-            if (bufferData.isNull()) {
-                continue;
-            }
-            OH_Drawing_RegisterFontBuffer(_fontCollection, fontName.c_str(), bufferData.getBytes(), bufferData.getSize());
-        }
-        _typographyCreate = OH_Drawing_CreateTypographyHandler(_typographyStyle, _fontCollection);
-        _textStyle = OH_Drawing_CreateTextStyle();
     }
 
     ~CanvasRenderingContext2DImpl() {
         if(_typographyStyle) {
             OH_Drawing_DestroyTypographyStyle(_typographyStyle);
             _typographyStyle = nullptr;
-        }
-
-        if(_fontCollection) {
-            OH_Drawing_DestroyFontCollection(_fontCollection);
         }
 
         if(_typographyCreate) {
@@ -245,13 +223,31 @@ public:
                     bool /* smallCaps */) {
         _fontName = fontName;
         _fontSize = static_cast<int>(fontSize);
-        std::string fontPath;
-        if (!_fontName.empty()) {
-            const char* fontFamilies[1];
-            fontFamilies[0] = fontName.c_str();
-            OH_Drawing_SetTextStyleFontFamilies(_textStyle, 1, fontFamilies);
-            OH_Drawing_SetTextStyleLocale(_textStyle, "en");
+        
+        if (_typographyCreate) {
+            OH_Drawing_DestroyTypographyHandler(_typographyCreate);
         }
+        if (_textStyle) {
+            OH_Drawing_DestroyTextStyle(_textStyle);
+        }
+
+        const auto &fontInfoMap = getFontFamilyCollectionMap();
+        auto it = fontInfoMap.find(_fontName);
+        if (it != fontInfoMap.end()) {
+            _fontCollection = it->second;
+        } else {
+            _fontCollection = fontInfoMap.at(defaultFontKey);
+        }
+        _typographyStyle = OH_Drawing_CreateTypographyStyle();
+        OH_Drawing_SetTypographyTextDirection(_typographyStyle, TEXT_DIRECTION_LTR);
+        OH_Drawing_SetTypographyTextAlign(_typographyStyle, TEXT_ALIGN_LEFT);
+        _typographyCreate = OH_Drawing_CreateTypographyHandler(_typographyStyle, _fontCollection);
+        _textStyle = OH_Drawing_CreateTextStyle();
+
+        const char *fontFamilies[1];
+        fontFamilies[0] = fontName.c_str();
+        OH_Drawing_SetTextStyleFontFamilies(_textStyle, 1, fontFamilies);
+        
         if (_fontSize)
             OH_Drawing_SetTextStyleFontSize(_textStyle, _fontSize);
         if (bold)

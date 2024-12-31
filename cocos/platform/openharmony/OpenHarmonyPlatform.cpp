@@ -39,6 +39,8 @@
 #include "scripting/js-bindings/jswrapper/SeApi.h"
 #include <sstream>
 #include <chrono>
+#include "native_window/external_window.h"
+#include "native_buffer/native_buffer.h"
 
 namespace {
 void sendMsgToWorker(const cocos2d::MessageType& type, void* component, void* window) {
@@ -50,6 +52,29 @@ void sendMsgToWorker(const cocos2d::MessageType& type, void* component, void* wi
 void onSurfaceCreatedCB(OH_NativeXComponent* component, void* window) {
     sendMsgToWorker(cocos2d::MessageType::WM_XCOMPONENT_SURFACE_CREATED, component, window);
 }
+
+void onSurfaceHideCB(OH_NativeXComponent* component, void* window) {
+    int32_t ret;
+    char idStr[OH_XCOMPONENT_ID_LEN_MAX + 1] = {};
+    uint64_t idSize = OH_XCOMPONENT_ID_LEN_MAX + 1;
+    ret = OH_NativeXComponent_GetXComponentId(component, idStr, &idSize);
+    if(ret != OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
+        return;
+    }
+    sendMsgToWorker(cocos2d::MessageType::WM_XCOMPONENT_SURFACE_HIDE, component, window);
+}
+
+void onSurfaceShowCB(OH_NativeXComponent* component, void* window) {
+    int32_t ret;
+    char idStr[OH_XCOMPONENT_ID_LEN_MAX + 1] = {};
+    uint64_t idSize = OH_XCOMPONENT_ID_LEN_MAX + 1;
+    ret = OH_NativeXComponent_GetXComponentId(component, idStr, &idSize);
+    if(ret != OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
+        return;
+    }
+    sendMsgToWorker(cocos2d::MessageType::WM_XCOMPONENT_SURFACE_SHOW, component, window);
+}
+
 
 cocos2d::TouchEvent::Type touchTypeTransform(OH_NativeXComponent_TouchEventType touchType) {
     if (touchType == OH_NATIVEXCOMPONENT_DOWN) {
@@ -136,6 +161,8 @@ int32_t OpenHarmonyPlatform::run(int argc, const char** argv) {
 void OpenHarmonyPlatform::setNativeXComponent(OH_NativeXComponent* component) {
     _component = component;
     OH_NativeXComponent_RegisterCallback(_component, &_callback);
+    OH_NativeXComponent_RegisterSurfaceHideCallback(_component, onSurfaceHideCB);
+    OH_NativeXComponent_RegisterSurfaceShowCallback(_component, onSurfaceShowCB);
 }
 
 void OpenHarmonyPlatform::enqueue(const WorkerMessageData& msg) {
@@ -181,6 +208,14 @@ void OpenHarmonyPlatform::onMessageCallback(const uv_async_t* /* req */) {
                 OH_NativeXComponent* nativexcomponet = reinterpret_cast<OH_NativeXComponent*>(msgData.data);
                 CC_ASSERT(nativexcomponet != nullptr);        
                 platform->onSurfaceChanged(nativexcomponet, msgData.window);
+            } else if (msgData.type == MessageType::WM_XCOMPONENT_SURFACE_SHOW) {
+                OH_NativeXComponent* nativexcomponet = reinterpret_cast<OH_NativeXComponent*>(msgData.data);
+                CC_ASSERT(nativexcomponet != nullptr);        
+                platform->onSurfaceShow(msgData.window);
+            } else if (msgData.type == MessageType::WM_XCOMPONENT_SURFACE_HIDE) {
+                OH_NativeXComponent* nativexcomponet = reinterpret_cast<OH_NativeXComponent*>(msgData.data);
+                CC_ASSERT(nativexcomponet != nullptr);        
+                platform->onSurfaceHide();
             } else if (msgData.type == MessageType::WM_XCOMPONENT_SURFACE_DESTROY) {
                 OH_NativeXComponent* nativexcomponet = reinterpret_cast<OH_NativeXComponent*>(msgData.data);
                 CC_ASSERT(nativexcomponet != nullptr);            
@@ -208,15 +243,24 @@ void OpenHarmonyPlatform::onCreateNative(napi_env env, uv_loop_t* loop) {
 void OpenHarmonyPlatform::onShowNative() {
     LOGD("OpenHarmonyPlatform::onShowNative");
     EventDispatcher::dispatchOnResumeEvent();
+    if (_timerInited) {
+        uv_timer_start(&_timerHandle, &OpenHarmonyPlatform::timerCb, 0, 1);
+    }
 }
 
 void OpenHarmonyPlatform::onHideNative() {
     LOGD("OpenHarmonyPlatform::onHideNative");
     EventDispatcher::dispatchOnPauseEvent();
+    if (_timerInited) {
+        uv_timer_stop(&_timerHandle);
+    }
 }
 
 void OpenHarmonyPlatform::onDestroyNative() {
     LOGD("OpenHarmonyPlatform::onDestroyNative");
+     if (_timerInited) {
+        uv_timer_stop(&_timerHandle);
+    }
 }
 
 void OpenHarmonyPlatform::timerCb(uv_timer_t* handle) {
@@ -233,6 +277,8 @@ void OpenHarmonyPlatform::restartJSVM() {
 void OpenHarmonyPlatform::workerInit(uv_loop_t* loop) {
     _workerLoop = loop;
     if (_workerLoop) {
+        uv_timer_init(_workerLoop, &_timerHandle);
+        _timerInited = true;
         uv_async_init(_workerLoop, &_messageSignal, reinterpret_cast<uv_async_cb>(OpenHarmonyPlatform::onMessageCallback));
         if (!_messageQueue.empty()) {
             triggerMessageSignal(); // trigger the signal to handle the pending message
@@ -241,13 +287,6 @@ void OpenHarmonyPlatform::workerInit(uv_loop_t* loop) {
 }
 
 void OpenHarmonyPlatform::requestVSync() {
-    // OH_NativeVSync_RequestFrame(OpenHarmonyPlatform::getInstance()->_nativeVSync, OnVSync, nullptr);
-     if (_workerLoop) {
-        // Todo: Starting the timer in this way is inaccurate and will be fixed later.
-        uv_timer_init(_workerLoop, &_timerHandle);
-        // The tick function needs to be called as quickly as possible because it is controlling the frame rate inside the engine.
-        uv_timer_start(&_timerHandle, &OpenHarmonyPlatform::timerCb, 0, 1);
-     }
 }
 
 int32_t OpenHarmonyPlatform::loop() {
@@ -258,6 +297,9 @@ void OpenHarmonyPlatform::onSurfaceCreated(OH_NativeXComponent* component, void*
     eglCore_ = new EGLCore();
     int32_t ret=OH_NativeXComponent_GetXComponentSize(component, window, &width_, &height_);
     if (ret == OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
+        int32_t code = SET_USAGE;
+        OHNativeWindow *nativeWindow = static_cast<OHNativeWindow *>(window); 
+        int32_t ret = OH_NativeWindow_NativeWindowHandleOpt(nativeWindow, code, NATIVEBUFFER_USAGE_MEM_DMA);
         eglCore_->GLContextInit(window, width_, height_);
         se::ScriptEngine *scriptEngine = se::ScriptEngine::getInstance();
         scriptEngine->addRegisterCallback(setCanvasCallback);
@@ -267,6 +309,7 @@ void OpenHarmonyPlatform::onSurfaceCreated(OH_NativeXComponent* component, void*
         }
         LOGD("egl init finished.");
     }
+    _lastTickInNanoSeconds = std::chrono::steady_clock::now();
 }
 
 void OpenHarmonyPlatform::onSurfaceChanged(OH_NativeXComponent* component, void* window) {
@@ -279,6 +322,15 @@ void OpenHarmonyPlatform::onSurfaceChanged(OH_NativeXComponent* component, void*
 
 void OpenHarmonyPlatform::onSurfaceDestroyed(OH_NativeXComponent* component, void* window) {
 }
+
+void OpenHarmonyPlatform::onSurfaceHide() {
+    eglCore_->destroySurface();
+}
+
+void OpenHarmonyPlatform::onSurfaceShow(void* window) {
+    eglCore_->createSurface(window);
+}
+
 
 void OpenHarmonyPlatform::setPreferedFramePersecond(int fps) {
     if (fps == 0) {
@@ -310,22 +362,21 @@ void OpenHarmonyPlatform::tick() {
         g_started = true;
     }
 
-    static std::chrono::steady_clock::time_point prevTime;
     static std::chrono::steady_clock::time_point now;
     static float dt = 0.f;
+    now = std::chrono::steady_clock::now();
     static double dtNS = NANOSECONDS_60FPS;
+
+    dtNS = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - _lastTickInNanoSeconds).count());
     if(dtNS < static_cast<double>(_prefererredNanosecondsPerFrame)) {
         std::this_thread::sleep_for(std::chrono::nanoseconds(
         _prefererredNanosecondsPerFrame - static_cast<int64_t>(dtNS)));
-        dtNS = static_cast<double>(_prefererredNanosecondsPerFrame);
     }
-    prevTime = std::chrono::steady_clock::now();
+    _lastTickInNanoSeconds = std::chrono::steady_clock::now();
     std::shared_ptr<Scheduler> scheduler = g_app->getScheduler();
     scheduler->update(dt);
     EventDispatcher::dispatchTickEvent(dt);
     PoolManager::getInstance()->getCurrentPool()->clear();
-    now = std::chrono::steady_clock::now();
-    dtNS = dtNS * 0.1 + 0.9 * static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - prevTime).count());
     dt = static_cast<float>(dtNS) / NANOSECONDS_PER_SECOND;
 }
 

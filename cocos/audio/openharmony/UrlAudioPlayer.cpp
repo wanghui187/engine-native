@@ -245,7 +245,25 @@ void UrlAudioPlayer::onInfo(OH_AVPlayer *player, AVPlayerOnInfoType type, int32_
                 audioPlayer->playEventCallback();
             }
         }
+    } else if (type == AV_INFO_TYPE_INTERRUPT_EVENT) {
+        auto it = __playerContainer.find(player);
+        if (it != __playerContainer.end()) {
+            UrlAudioPlayer *audioPlayer = it->second;
+            const int32_t interruptHintResume = 1;
+            const int32_t interruptHintPause = 2;
+            if (extra == interruptHintResume) {
+                audioPlayer->resume();
+            } else if (extra == interruptHintPause) {
+                audioPlayer->pause();
+            } else {
+                ALOGV("UrlAudioPlayer was interrupted, hint type is %d", extra);
+            }
+        }
     }
+}
+
+void UrlAudioPlayer::onError(OH_AVPlayer *player, int32_t errorCode, const char *errorMsg) {
+    ALOGE("UrlAudioPlayer play failed, errorCode is: %d, errorMsg is %s", errorCode, errorMsg);
 }
 
 void UrlAudioPlayer::playEventCallback(){
@@ -299,8 +317,10 @@ bool UrlAudioPlayer::prepare(const std::string &url, std::shared_ptr<AssetFd> as
 
     AVPlayerCallback callback;
     callback.onInfo = this->onInfo;
+    callback.onError = this->onError;
     OH_AVPlayer_SetPlayerCallback(_playObj, callback);
     OH_AVPlayer_SetFDSource(_playObj, _assetFd->getFd(), start, length);
+    OH_AVPlayer_SetAudioRendererInfo(_playObj, OH_AudioStream_Usage::AUDIOSTREAM_USAGE_GAME);
     OH_AVErrCode code = OH_AVPlayer_Prepare(_playObj);
     if (code == AV_ERR_OK) {
         setState(State::INITIALIZED);
@@ -350,11 +370,7 @@ void UrlAudioPlayer::destroy()
     if (!*_isDestroyed)
     {
         *_isDestroyed = true;
-        OH_AVErrCode code = OH_AVPlayer_Reset(_playObj);
-        if (code == AV_ERR_OK) {
-            ALOGE("UrlAudioPlayer reset error, code: %d", code);
-        } 
-        code = OH_AVPlayer_Release(_playObj);
+        OH_AVErrCode code = OH_AVPlayer_Release(_playObj);
         if (code == AV_ERR_OK) {
             ALOGE("UrlAudioPlayer release error, code: %d", code);
         }
