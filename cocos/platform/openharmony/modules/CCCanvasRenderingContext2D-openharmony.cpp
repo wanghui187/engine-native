@@ -197,6 +197,27 @@ public:
         OH_Drawing_CanvasDrawPath(_canvas, path);
     }
 
+    void setPremultiply(bool multiply)
+    {
+        _premultiply = multiply;
+    }
+
+    #define CLAMP(V, HI) std::min( (V), (HI) )
+    void unMultiplyAlpha(unsigned char* ptr, ssize_t size)
+    {
+        float alpha;
+        for (int i = 0; i < size; i += 4)
+        {
+            alpha = (float)ptr[i + 3];
+            if (alpha > 0)
+            {
+                ptr[i] = CLAMP((int)((float)ptr[i] / alpha * 255), 255);
+                ptr[i+1] = CLAMP((int)((float)ptr[i+1] / alpha * 255), 255);
+                ptr[i+2] =  CLAMP((int)((float)ptr[i+2] / alpha * 255), 255);
+            }
+        }
+    }
+
     void fillText(const std::string &text, float x, float y, float /*maxWidth*/) {
         if (text.empty() || _bufferWidth < 1.0F || _bufferHeight < 1.0F) {
             return;
@@ -204,6 +225,9 @@ public:
         Size  textSize    = {0, 0};
         Point offsetPoint = convertDrawPoint(Point{x, y}, text);
         drawText(text, offsetPoint[0], offsetPoint[1]);
+        if(!_premultiply) {
+            unMultiplyAlpha(_imageData.getBytes(), _imageData.getSize());
+        }
     }
 
     void strokeText(const std::string &text, float /*x*/, float /*y*/, float /*maxWidth*/) const {
@@ -403,6 +427,8 @@ private:
     TextBaseline       _textBaseLine{TextBaseline::TOP};
     Color4F            _fillStyle{0};
     Color4F            _strokeStyle{0};
+
+    bool _premultiply = true;
 };
 
 NS_CC_BEGIN
@@ -538,7 +564,7 @@ void CanvasRenderingContext2D::setCanvasBufferUpdatedCallback(const CanvasBuffer
 
 void CanvasRenderingContext2D::setPremultiply(bool multiply)
 {
-    _premultiply = multiply;
+    _impl->setPremultiply(multiply);
 }
 
 void CanvasRenderingContext2D::set__width(float width)
