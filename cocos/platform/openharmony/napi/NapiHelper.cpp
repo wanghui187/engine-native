@@ -435,7 +435,7 @@ Napi::Value evalString(const Napi::CallbackInfo &info){
     strcpy(cValue, value.c_str());
     se::Value ret;
     se::ScriptEngine::getInstance()->evalString(cValue, length, &ret);
-    
+    delete[] cValue;
     Napi::Value result;
     sevalue_to_napivalue(ret, &result, env);
         
