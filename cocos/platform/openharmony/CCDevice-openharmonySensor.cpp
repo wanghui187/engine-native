@@ -23,13 +23,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ****************************************************************************/
-#include "CCValue.h"
-#include "sensors/oh_sensor.h"
-#include "hilog/log.h"
 #include "platform/CCDevice.h"
-#include "platform/openharmony/napi/NapiHelper.h"
-#include <cmath>
-#include <cstdint>
+#if CC_TARGET_PLATFORM == CC_PLATFORM_OPENHARMONY
+
+#include "sensors/oh_sensor.h"
+NS_CC_BEGIN
 
 const int GLOBAL_RESMGR = 0xFF00;
 const char *TAG = "[Sensor]";
@@ -54,23 +52,23 @@ void SensorDataCallbackImpl(Sensor_Event *event) {
         return;
     }
     int64_t timestamp = INVALID_VALUE;
-    int32_t ret = OH_SensorEvent_GetTimestamp(event, &timestamp); // 获取传感器数据的时间戳。
+    int32_t ret = OH_SensorEvent_GetTimestamp(event, &timestamp);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
     Sensor_Type sensorType;
-    ret = OH_SensorEvent_GetType(event, &sensorType); // 获取传感器类型。
+    ret = OH_SensorEvent_GetType(event, &sensorType);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
     Sensor_Accuracy accuracy = SENSOR_ACCURACY_UNRELIABLE;
-    ret = OH_SensorEvent_GetAccuracy(event, &accuracy); // 获取传感器数据的精度。
+    ret = OH_SensorEvent_GetAccuracy(event, &accuracy);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
     float *data = nullptr;
     uint32_t length = 0;
-    ret = OH_SensorEvent_GetData(event, &data, &length); // 获取传感器数据。
+    ret = OH_SensorEvent_GetData(event, &data, &length);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
@@ -93,27 +91,26 @@ void SensorDataCallbackImpl(Sensor_Event *event) {
     }
 }
 
-static void enableAccelerometer(int index) {
-    Sensor_Subscriber *gUser = OH_Sensor_CreateSubscriber(); // 创建一个Sensor_Subscriber实例。
-    int32_t ret = OH_SensorSubscriber_SetCallback(gUser, SensorDataCallbackImpl); // 设置一个回调函数来报告传感器数据。
+static void enableSensor(int index) {
+    Sensor_Subscriber *gUser = OH_Sensor_CreateSubscriber();
+    int32_t ret = OH_SensorSubscriber_SetCallback(gUser, SensorDataCallbackImpl);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
 
-    Sensor_SubscriptionId *id = OH_Sensor_CreateSubscriptionId(); // 创建一个Sensor_SubscriptionId实例。
-    ret = OH_SensorSubscriptionId_SetType(id, SENSOR_ID[index]);  // 设置传感器类型。
+    Sensor_SubscriptionId *id = OH_Sensor_CreateSubscriptionId();
+    ret = OH_SensorSubscriptionId_SetType(id, SENSOR_ID[index]);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
 
-    Sensor_SubscriptionAttribute *attr =
-        OH_Sensor_CreateSubscriptionAttribute(); // 创建Sensor_SubscriptionAttribute实例。
-    ret = OH_SensorSubscriptionAttribute_SetSamplingInterval(attr, SENSOR_SAMPLE_PERIOD); // 设置传感器数据报告间隔。
+    Sensor_SubscriptionAttribute *attr = OH_Sensor_CreateSubscriptionAttribute();
+    ret = OH_SensorSubscriptionAttribute_SetSamplingInterval(attr, SENSOR_SAMPLE_PERIOD);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
 
-    ret = OH_Sensor_Subscribe(id, attr, gUser); // 订阅传感器数据。
+    ret = OH_Sensor_Subscribe(id, attr, gUser);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
@@ -124,24 +121,24 @@ static void enableAccelerometer(int index) {
     OH_LOG_Print(LOG_APP, LOG_INFO, GLOBAL_RESMGR, TAG, "Subscriber successful");
 }
 
-static void disableAccelerometer(int index) {
+static void disableSensor(int index) {
     int32_t ret = -1;
     Sensor_SubscriptionId *it = g_id[index];
     Sensor_SubscriptionAttribute *at = g_attr[index];
     Sensor_Subscriber *gUser = g_user[index];
 
-    ret = OH_Sensor_Unsubscribe(it, gUser); // 取消订阅传感器数据。
+    ret = OH_Sensor_Unsubscribe(it, gUser);
     if (ret != SENSOR_SUCCESS) {
         return;
     }
     if (it != nullptr) {
-        OH_Sensor_DestroySubscriptionId(it); // 销毁Sensor_SubscriptionId实例并回收内存。
+        OH_Sensor_DestroySubscriptionId(it);
     }
     if (at != nullptr) {
-        OH_Sensor_DestroySubscriptionAttribute(at); // 销毁Sensor_SubscriptionAttribute实例并回收内存。
+        OH_Sensor_DestroySubscriptionAttribute(at);
     }
     if (gUser != nullptr) {
-        OH_Sensor_DestroySubscriber(gUser); // 销毁Sensor_Subscriber实例并回收内存。
+        OH_Sensor_DestroySubscriber(gUser);
         gUser = nullptr;
     }
 }
@@ -150,14 +147,14 @@ void cocos2d::Device::setAccelerometerEnabled(bool isEnabled) {
     constexpr int length = sizeof(SENSOR_ID) / sizeof(SENSOR_ID[0]);
     if (isEnabled) {
         for (uint32_t i = 0; i < length; i++) {
-            disableAccelerometer(i);
+            disableSensor(i);
         }
         for (uint32_t i = 0; i < length; i++) {
-            enableAccelerometer(i);
+            enableSensor(i);
         }
     } else {
         for (uint32_t i = 0; i < length; i++) {
-            disableAccelerometer(i);
+            disableSensor(i);
         }
     }
 }
@@ -168,3 +165,6 @@ void cocos2d::Device::setAccelerometerInterval(float interval) {
 }
 
 const cocos2d::Device::MotionValue &cocos2d::Device::getDeviceMotionValue() { return motionValue; }
+
+NS_CC_END
+#endif // CC_TARGET_PLATFORM == CC_PLATFORM_OPENHARMONY

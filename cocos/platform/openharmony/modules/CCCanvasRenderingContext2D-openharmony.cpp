@@ -428,7 +428,7 @@ private:
     Color4F            _fillStyle{0};
     Color4F            _strokeStyle{0};
 
-    bool _premultiply = true;
+    bool _premultiply{true};
 };
 
 NS_CC_BEGIN
