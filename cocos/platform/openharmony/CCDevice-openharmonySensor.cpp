@@ -25,12 +25,10 @@ THE SOFTWARE.
 ****************************************************************************/
 #include "platform/CCDevice.h"
 #if CC_TARGET_PLATFORM == CC_PLATFORM_OPENHARMONY
-
+#include "HelperMacros.h"
 #include "sensors/oh_sensor.h"
 NS_CC_BEGIN
 
-const int GLOBAL_RESMGR = 0xFF00;
-const char *TAG = "[Sensor]";
 constexpr Sensor_Type SENSOR_ID[]{SENSOR_TYPE_ACCELEROMETER, SENSOR_TYPE_LINEAR_ACCELERATION, SENSOR_TYPE_GYROSCOPE};
 int64_t SENSOR_SAMPLE_PERIOD = 200000000;
 constexpr int64_t INVALID_VALUE = -1;
@@ -48,7 +46,7 @@ float radiansToDegrees(float radians) {
 
 void SensorDataCallbackImpl(Sensor_Event *event) {
     if (event == nullptr) {
-        OH_LOG_Print(LOG_APP, LOG_INFO, GLOBAL_RESMGR, TAG, "event is null");
+        LOGI("event is null");
         return;
     }
     int64_t timestamp = INVALID_VALUE;
@@ -118,7 +116,7 @@ static void enableSensor(int index) {
     g_id[index] = id;
     g_attr[index] = attr;
 
-    OH_LOG_Print(LOG_APP, LOG_INFO, GLOBAL_RESMGR, TAG, "Subscriber successful");
+    LOGI("Subscriber successful");
 }
 
 static void disableSensor(int index) {
