@@ -184,7 +184,8 @@ public:
 
     void setPremultiply(bool multiply) { _premultiply = multiply; }
 
-#define CLAMP(V, HI) std::min((V), (HI))
+    #define CLAMP(V, HI) std::min((V), (HI))
+    
     void unMultiplyAlpha(unsigned char *ptr, ssize_t size) {
         float alpha;
         for (int i = 0; i < size; i += 4) {
