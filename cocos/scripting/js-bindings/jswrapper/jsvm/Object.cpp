@@ -775,6 +775,15 @@ void Object::clearPrivateData(bool clearMapping) {
     }
 }
 
+JSVM_Value ObjectRef::getValue(JSVM_Env env) const {
+    JSVM_Value  result;
+    JSVM_Status status;
+    NODE_API_CALL(status, env, OH_JSVM_GetReferenceValue(env, _ref, &result));
+    assert(status == JSVM_OK);
+    assert(result != nullptr);
+    return result;
+}
+
 Object* Object::createUTF8String(const std::string& str) { 
     JSVM_Status status;
     JSVM_Value result;

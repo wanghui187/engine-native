@@ -31,6 +31,7 @@
 #include "../config.hpp"
 #include "CommonHeader.h"
 #include "HelperMacros.h"
+#include "Utils.h"
 
 namespace se {
 class Class;
@@ -49,14 +50,9 @@ public:
     ~ObjectRef() {
         deleteRef();
     }
-    JSVM_Value getValue(JSVM_Env env) const {
-        JSVM_Value  result;
-        JSVM_Status status;
-        NODE_API_CALL(status, env, OH_JSVM_GetReferenceValue(env, _ref, &result));
-        assert(status == JSVM_OK);
-        assert(result != nullptr);
-        return result;
-    }
+    
+    JSVM_Value getValue(JSVM_Env env) const;
+    
     void initWeakref(JSVM_Env env, JSVM_Value obj) {
         assert(_ref == nullptr);
         _obj = obj;

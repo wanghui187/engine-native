@@ -423,8 +423,7 @@ void ScriptEngine::setEnv(JSVM_Env env) { getInstance()->_env = env; }
 // }
 
 void ScriptEngine::setExceptionCallback(const ExceptionCallback &cb) {
-    //not impl
-    return;
+    _exceptionCallback = cb;
 }
 
 const std::chrono::steady_clock::time_point &ScriptEngine::getStartTime() const { return _startTime; }
