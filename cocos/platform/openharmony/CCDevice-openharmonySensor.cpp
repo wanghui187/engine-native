@@ -160,7 +160,7 @@ void cocos2d::Device::setAccelerometerEnabled(bool isEnabled) {
 }
 
 void cocos2d::Device::setAccelerometerInterval(float interval) {
-    SENSOR_SAMPLE_PERIOD = static_cast<int64_t>(interval*1000000);
+    SENSOR_SAMPLE_PERIOD = static_cast<int64_t>(interval*1000000000);
     setAccelerometerEnabled(true);
 }
 
