@@ -221,7 +221,7 @@ void logJsException(JSVM_Env env, const char *file, int line) {
     JSVM_CALL_RETURN_VOID(OH_JSVM_GetNamedProperty(env, error, "stack", &stack));
 
     JSVM_Value message;
-    JSVM_CALL_RETURN_VOID(OH_JSVM_GetNamedProperty(env, error, "stack", &message));
+    JSVM_CALL_RETURN_VOID(OH_JSVM_GetNamedProperty(env, error, "message", &message));
 
     std::string nameStr = jsToString(name);
     std::string stackStr = jsToString(stack);
