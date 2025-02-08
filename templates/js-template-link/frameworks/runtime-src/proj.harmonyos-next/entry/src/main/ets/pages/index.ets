@@ -37,10 +37,14 @@ import { BusinessError } from '@kit.BasicServicesKit';
 const nativePageLifecycle :context = nativerender.getContext(ContextType.JSPAGE_LIFECYCLE);
 const engineUtils :context = nativerender.getContext(ContextType.ENGINE_UTILS);
 
-function executeNativeMethod(nativeFunc: Function, funcData: string, funCb: Function): void {
+function executeAsyncMethod(nativeFunc: Function, funcData: string, funCb: Function): void {
   nativeFunc && nativeFunc(funcData, funCb);
 }
-engineUtils.registerFunction("executeNativeMethod", executeNativeMethod);
+function executeSyncMethod(nativeFunc: Function, funcData: string): string|boolean|number {
+  return nativeFunc && nativeFunc(funcData);
+}
+engineUtils.registerFunction("executeAsyncMethod", executeAsyncMethod);
+engineUtils.registerFunction("executeSyncMethod", executeSyncMethod);
 
 interface WorkerMessage {
   type: string;
