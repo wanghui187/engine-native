@@ -39,7 +39,7 @@ struct AsyncCallParam {
     std::function<void(CallbackParamType)> cb;
     std::string paramStr;
     char *module_info;
-    const char *_clsPath;
+    const char *clsPath;
     const char *method;
     napi_ref executeFuncRef;
 };
@@ -141,11 +141,11 @@ public:
         if (isSync) {
             status = napi_create_threadsafe_function(
                 env, func, nullptr, workName, 0, 1, nullptr, [](napi_env env, void *raw, void *hint) {}, callParam,
-                CallSyncJS, &save_func);
+                CallJsSync, &save_func);
         } else {
             status = napi_create_threadsafe_function(
                 env, func, nullptr, workName, 0, 1, nullptr, [](napi_env env, void *raw, void *hint) {}, callParam,
-                CallAsyncJS, &save_func);
+                CallJsAsync, &save_func);
         }
 
         if (status != napi_ok) {
@@ -166,7 +166,7 @@ public:
         }
     }
     
-    static void CallAsyncJS(napi_env env, napi_value js_cb, void *context, void *data) {
+    static void CallJsAsync(napi_env env, napi_value js_cb, void *context, void *data) {
         AsyncCallParam *callParam = (AsyncCallParam*) (context);
         if (callParam == nullptr) {
             LOGW("CallJS AsyncCallParam callParam is null");
@@ -227,7 +227,7 @@ public:
         }
 
         napi_value result;
-        status = napi_load_module_with_info(env, callParam->_clsPath, callParam->module_info, &result);
+        status = napi_load_module_with_info(env, callParam->clsPath, callParam->module_info, &result);
         if (status != napi_ok) {
             LOGW("callNativeMethod napi_load_module_with_info fail, status=%{public}d", status);
             return;
@@ -254,7 +254,7 @@ public:
         }
     }
 
-    static void CallSyncJS(napi_env env, napi_value js_cb, void *context, void *data) {
+    static void CallJsSync(napi_env env, napi_value js_cb, void *context, void *data) {
         AsyncCallParam *callParam = (AsyncCallParam *)(context);
         if (callParam == nullptr) {
             LOGW("CallJS AsyncCallParam callParam is null");
@@ -269,7 +269,7 @@ public:
         }
 
         napi_value result;
-        status = napi_load_module_with_info(env, callParam->_clsPath, callParam->module_info, &result);
+        status = napi_load_module_with_info(env, callParam->clsPath, callParam->module_info, &result);
         if (status != napi_ok) {
             LOGW("callNativeMethod napi_load_module_with_info fail, status=%{public}d", status);
             return;

@@ -123,9 +123,9 @@ bool JavaScriptArkTsBridge::CallInfo::execute(se::Value &rval)
     };
     cocos2d::AsyncCallParam *callParam = new cocos2d::AsyncCallParam{cb, _paramStr, module_info, _clsPath, method};
     if (_isSyn) {
-        cocos2d::JSFunction::getFunction("executeSyncMethod").invoke(callParam, _isSyn);
+        cocos2d::JSFunction::getFunction("executeMethodSync").invoke(callParam, _isSyn);
     } else {
-        cocos2d::JSFunction::getFunction("executeAsyncMethod").invoke(callParam, _isSyn);
+        cocos2d::JSFunction::getFunction("executeMethodAsync").invoke(callParam, _isSyn);
     }
     cocos2d::CallbackParamType methodResult = promise.get_future().get();
     free(module_info);
