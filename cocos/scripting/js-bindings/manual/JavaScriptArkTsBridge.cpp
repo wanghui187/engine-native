@@ -121,7 +121,7 @@ bool JavaScriptArkTsBridge::CallInfo::execute(se::Value &rval)
     std::function<void(cocos2d::CallbackParamType)> cb = [&promise](cocos2d::CallbackParamType message) {
         promise.set_value(message);
     };
-    cocos2d::AsyncCallParam *callParam = new cocos2d::AsyncCallParam{cb, _paramStr, module_info, _clsPath, method};
+    cocos2d::CallParam *callParam = new cocos2d::CallParam{cb, _paramStr, module_info, _clsPath, method};
     if (_isSyn) {
         cocos2d::JSFunction::getFunction("executeMethodSync").invoke(callParam, _isSyn);
     } else {
